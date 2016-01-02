@@ -1,3 +1,5 @@
+//comment\
+comment
 #include <stdio.h>
 #include <string.h>
 #include <Windows.h>
@@ -7,11 +9,16 @@
 
 #define CODE_SINGLE_LINE_COMMENT 1
 #define CODE_SINGLE_LINE_COMMENT_WITH_NEW_LINE 2
-#define CODE_MULTI_LINE_COMMENT 3
+#define CODE_MULTILINE_COMMENT_START 3
+#define CODE_MULTILINE_COMMENT_END 4
 
 #define SINGLE_LINE_COMMENT "//"
 #define MULTILINE_COMMENT_BEGIN "/*"
 #define MULTILINE_COMMENT_END "*/"
+#define LEFT_SLASH '\\'
+#define QUOTE '\"'
+#define NEW_LINE '\n'
+#define TERMINATING_CHARACTER '\0'
 
 #define MODE_READ_ONLY "r"
 
@@ -20,7 +27,9 @@
 // Parameters: char* string - the string we are working on
 void chomp(char* line);
 void process(char* file_name);
-int has_comment(char* text);
+short has_comment(char* text);
+short comment_ended(char* text, short comment_type);
+char read_line(FILE* file, char* destination, int max_chunk_size);
 
 int main() {
 	char file_name[MAX_FILE_NAME_LENGTH];
@@ -45,7 +54,7 @@ void process(char* file_name) {
 	FILE* file;
 	char text_chunk[READ_LINE_BUFFER_SIZE];
 	short comment_type = 0;
-	short is_in_comment = 0, is_in_quotes = 0;
+	short is_in_multiline_comment = 0, is_in_singleline_with_new_line_comment = 0, is_in_quotes = 0;
 
 	chomp(file_name);
 	file = fopen(file_name, MODE_READ_ONLY);
@@ -55,28 +64,75 @@ void process(char* file_name) {
 		return NULL;
 	}
 
-	while (fgets(text_chunk, READ_LINE_BUFFER_SIZE, file) != NULL) {
-		if ((comment_type = has_comment(text_chunk))) {
+	char last_char_read;
+	while ((last_char_read = read_line(file, text_chunk, READ_LINE_BUFFER_SIZE)) != EOF) {
+		
+		if (is_in_singleline_with_new_line_comment) {
+			is_in_singleline_with_new_line_comment = 0;
+			printf("%s\n", text_chunk);
+			continue;
+		}
+
+		if (!is_in_multiline_comment &&  (comment_type = has_comment(text_chunk))) {
 			switch (comment_type) {
 			case CODE_SINGLE_LINE_COMMENT: 
-				printf("%s", text_chunk);
+				printf("%s\n", text_chunk);
 				printf("single line comment\n\n");
 				break;
 			case CODE_SINGLE_LINE_COMMENT_WITH_NEW_LINE:
-
+				printf("%s\n", text_chunk);
+				printf("single line comment with new line\n\n");
+				is_in_singleline_with_new_line_comment = 1;
 				break;
-			case CODE_MULTI_LINE_COMMENT:
-				printf("%s", text_chunk);
+			case CODE_MULTILINE_COMMENT_START:
+				printf("%s\n", text_chunk);
 				printf("multi line comment\n\n");
+				//is_in_comment = 1;
+				break;
+			case CODE_MULTILINE_COMMENT_END:
+
 				break;
 			}
 		}
+		else if (is_in_multiline_comment) {
+			if (comment_ended(text_chunk, comment_type)) {
+				//is_in_comment = 0;
+			}
+		}
 	}
-	// empty comment
+	// empty comment\
+	
 	fclose(file);
 }
 
-int has_comment(char* text) {
+char read_line(FILE* file, char* destination, int max_chunk_size) {
+	int index;
+
+	char c;
+	for (index = 0; index < max_chunk_size - 1; index++) {
+		c = fgetc(file);
+		if (c == NEW_LINE) {
+			destination[index] = TERMINATING_CHARACTER;
+			return c;
+		}
+		else if (c == EOF) {
+			destination[index] = TERMINATING_CHARACTER;
+			return EOF;
+		}
+		else {
+			destination[index] = c;
+		}
+	}
+
+	destination[max_chunk_size - 1] = TERMINATING_CHARACTER;
+	return destination[strlen(destination) - 2];
+}
+
+short comment_ended(char* text, short comment_type) {
+	return 1;
+}
+
+short has_comment(char* text) {
 	char* singleline_strstr = strstr(text, SINGLE_LINE_COMMENT);
 	char* multiline_strstr = strstr(text, MULTILINE_COMMENT_BEGIN);
 
@@ -92,10 +148,14 @@ int has_comment(char* text) {
 	}
 
 	if (strlen_single_line_strstr > strlen_multiline_strstr) {
+		if (text[strlen(text) - 1] == LEFT_SLASH) {
+			return CODE_SINGLE_LINE_COMMENT_WITH_NEW_LINE;
+		}
+		
 		return CODE_SINGLE_LINE_COMMENT;
 	}
 	else if (strlen_single_line_strstr < strlen_multiline_strstr) {
-		return CODE_MULTI_LINE_COMMENT;
+		return CODE_MULTILINE_COMMENT_START;
 	}
 
 	return 0;
