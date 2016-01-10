@@ -7,9 +7,7 @@
 #define MAX_FILE_NAME_LENGTH 20
 #define READ_LINE_BUFFER_SIZE 128
 
-#define CODE_SINGLE_LINE_COMMENT 1
-#define CODE_SINGLE_LINE_COMMENT_WITH_NEW_LINE 2
-#define CODE_MULTILINE_COMMENT_START 3
+#define ERROR "Error"
 
 #define SINGLE_LINE_COMMENT "//"
 #define MULTILINE_COMMENT_BEGIN "/*"
@@ -30,7 +28,8 @@ void process(char* file_name);
 // Returns 1 if the new line symbol is escaped, 0 if it is not, -1 if no new line symbol was found.\
 //
 short is_new_line_escaped(char* string);
-/**/
+short is_symbol_escaped(char* string, char symbol, int index);
+
 int main() {
 	char file_name[MAX_FILE_NAME_LENGTH];
 	char* check;
@@ -56,7 +55,7 @@ void process(char* file_name) {
 	FILE* file;
 	char line[READ_LINE_BUFFER_SIZE];
 	char escape_and_symbol[3];
-	escape_and_symbol[2] = '\0';
+	escape_and_symbol[2] = TERMINATING_CHARACTER;
 
 	int comment_count = 0;
 
@@ -64,12 +63,13 @@ void process(char* file_name) {
 	file = fopen(file_name, MODE_READ_ONLY);
 
 	if (file == NULL) {
-		perror("Error");
+		perror(ERROR);
 		return;
 	}
 
 	short skip_line = False;
 	short is_in_multiline_comment = False;
+	short is_in_string = False;
 	while (fgets(line, READ_LINE_BUFFER_SIZE, file) != NULL) {
 		if (skip_line) {
 			if (is_new_line_escaped(line) > False) {
@@ -87,33 +87,50 @@ void process(char* file_name) {
 			escape_and_symbol[0] = line[index];
 			escape_and_symbol[1] = line[index + 1];
 
-			if (is_in_multiline_comment) {
-				if (!strcmp(escape_and_symbol, MULTILINE_COMMENT_END)) {
-					is_in_multiline_comment = False;
+			if (escape_and_symbol[0] == QUOTE) {
+				is_in_string = !is_in_string;
+			} 
+
+			if (index == strlen(line) - 3) {
+				if (escape_and_symbol[1] == QUOTE) {
+					is_in_string = !is_in_string;
 				}
 			}
 
-			if (!is_in_multiline_comment) {
-				if (!strcmp(escape_and_symbol, SINGLE_LINE_COMMENT)) {
-					comment_count++;
-					if (is_new_line_escaped(line) > False) {
-						skip_line = True;
+			if (!is_in_string) {
+				if (is_in_multiline_comment) {
+					if (!strcmp(escape_and_symbol, MULTILINE_COMMENT_END)) {
+						is_in_multiline_comment = False;
 					}
-
-					continue;
 				}
-				else if (!strcmp(escape_and_symbol, MULTILINE_COMMENT_BEGIN)) {
-					comment_count++;
-					is_in_multiline_comment = True;
+
+				if (!is_in_multiline_comment) {
+					if (!strcmp(escape_and_symbol, SINGLE_LINE_COMMENT)) {
+						comment_count++;
+						printf("%s", line);
+						if (is_new_line_escaped(line) > False) {
+							skip_line = True;
+						}
+
+						continue;
+					}
+					else if (!strcmp(escape_and_symbol, MULTILINE_COMMENT_BEGIN)) {
+						comment_count++;
+						printf("%s", line);
+						is_in_multiline_comment = True;
+					}
 				}
 			}
-
 		}
 	}
 
 	printf("comments count: %d\n", comment_count);
 
 	fclose(file);
+}
+
+short is_symbol_escaped(char* string, char symbol, int index) {
+
 }
 
 short is_new_line_escaped(char* string) {
