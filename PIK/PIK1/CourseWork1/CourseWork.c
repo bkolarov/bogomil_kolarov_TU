@@ -1,3 +1,5 @@
+// Couse Work Bogomil Kolarov
+
 #include <stdio.h>
 #include <string.h>
 #include <Windows.h>
@@ -70,7 +72,7 @@ void process(char* file_name) {
 	short is_in_multiline_comment = False;
 	while (fgets(line, READ_LINE_BUFFER_SIZE, file) != NULL) {
 		if (skip_line) {
-			if (is_new_line_escaped > False) {
+			if (is_new_line_escaped(line) > False) {
 				skip_line = True;
 			}
 			else {
