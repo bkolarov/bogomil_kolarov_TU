@@ -19,18 +19,19 @@
 
 #define MODE_READ_ONLY "r"
 
-#define True 1;
-#define False 0;
+const short True = 1;
+const short False = 0;
 
 void chomp(char* line);
 void process(char* file_name);
+// Finds the first occurence of the new line symbol and cheks if it is escaped.
+// Returns 1 if the new line symbol is escaped, 0 if it is not, -1 if no new line symbol was found.\
+//
 short is_new_line_escaped(char* string);
-
+/**/
 int main() {
 	char file_name[MAX_FILE_NAME_LENGTH];
 	char* check;
-
-	printf("%d\n", is_new_line_escaped("\\bla\tbla\\\n"));
 
 	printf("Enter the name of the file: ");
 
@@ -42,7 +43,6 @@ int main() {
 	}
 
 	
-
 	process(file_name);
 
 
@@ -54,7 +54,8 @@ void process(char* file_name) {
 	FILE* file;
 	char line[READ_LINE_BUFFER_SIZE];
 	char escape_and_symbol[3];
-	
+	escape_and_symbol[2] = '\0';
+
 	int comment_count = 0;
 
 	chomp(file_name);
@@ -65,12 +66,11 @@ void process(char* file_name) {
 		return;
 	}
 
-	int index;
-	escape_and_symbol[2] = '\0';
 	short skip_line = False;
+	short is_in_multiline_comment = False;
 	while (fgets(line, READ_LINE_BUFFER_SIZE, file) != NULL) {
 		if (skip_line) {
-			if (is_new_line_escaped) {
+			if (is_new_line_escaped > False) {
 				skip_line = True;
 			}
 			else {
@@ -79,27 +79,37 @@ void process(char* file_name) {
 
 			continue;
 		}
-
+		
+		int index;
 		for (index = 0; index < strlen(line) - 1; index++) {
 			escape_and_symbol[0] = line[index];
 			escape_and_symbol[1] = line[index + 1];
-			
-			if (escape_and_symbol[0] == '\\' && escape_and_symbol[1] != NEW_LINE) {
-				index += 1;
-				continue;
+
+			if (is_in_multiline_comment) {
+				if (!strcmp(escape_and_symbol, MULTILINE_COMMENT_END)) {
+					is_in_multiline_comment = False;
+				}
 			}
 
-			if (!strcmp(escape_and_symbol, SINGLE_LINE_COMMENT)) {
-				comment_count++;
-				if (is_new_line_escaped(line)) {
-					skip_line = True;
+			if (!is_in_multiline_comment) {
+				if (!strcmp(escape_and_symbol, SINGLE_LINE_COMMENT)) {
+					comment_count++;
+					if (is_new_line_escaped(line) > False) {
+						skip_line = True;
+					}
+
+					continue;
+				}
+				else if (!strcmp(escape_and_symbol, MULTILINE_COMMENT_BEGIN)) {
+					comment_count++;
+					is_in_multiline_comment = True;
 				}
 			}
 
 		}
-
-
 	}
+
+	printf("comments count: %d\n", comment_count);
 
 	fclose(file);
 }
