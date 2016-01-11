@@ -15,6 +15,8 @@
 #define ESCAPE_SYMBOL '\\'
 #define QUOTE '\"'
 #define NEW_LINE '\n'
+#define SPACE_STR = " "
+
 #define TERMINATING_CHARACTER '\0'
 
 #define MODE_READ_ONLY "r"
@@ -32,6 +34,11 @@ void process(char* file_name);
 short is_new_line_escaped(char* string);
 short is_symbol_escaped(char* string, char symbol, int index);
 short is_symbol_escaped(char* string, char symbol, int index_symbol);
+short is_c_type(char* word);
+void count_identifiers(char* string);
+void remove_spaces(char* source);
+void normalize_identifier(char* identifier);
+short is_c_non_type_keyword(char* word);
 
 struct Quote has_string(char* string);
 /*
@@ -47,7 +54,7 @@ int main() {
 	char file_name[MAX_FILE_NAME_LENGTH];
 	char* check;
 
-	printf("Enter the name of the file: ");
+	printf("Enter the name of the file: "); //
 
 	while ((check = fgets(file_name, MAX_FILE_NAME_LENGTH, stdin)) == NULL) {
 		if (feof(stdin)) {
@@ -136,7 +143,7 @@ void process(char* file_name) {
 							|| !string_bounds.has_string) {
 
 					comment_count++;
-					printf("%s", line);
+					
 					if (is_new_line_escaped(line)) {
 						skip_line = True;
 						continue;
@@ -148,9 +155,11 @@ void process(char* file_name) {
 							|| !string_bounds.has_string) {
 
 					comment_count++;
-					printf("%s", line);
 					is_in_multiline_comment = True;
 				}
+			}
+			else {
+				count_identifiers(line);
 			}
 		}
 	}
@@ -158,6 +167,65 @@ void process(char* file_name) {
 	printf("comments count: %d\n", comment_count);
 
 	fclose(file);
+}
+
+void count_identifiers(char* src) {
+	static int identifiers_char_count = 0;
+	char string[READ_LINE_BUFFER_SIZE];
+	strcpy(string, src);
+
+	short  is_type = False;
+	char* token;
+	token = strtok(string, " ");
+	chomp(token);
+	while (token != NULL) {
+		remove_spaces(token);
+		normalize_identifier(token);
+
+		is_type = is_c_type(token);
+
+		if (!is_type && !is_c_non_type_keyword(token)) {
+			identifiers_char_count += strlen(token);
+			printf("%s\n", token);
+		}
+
+		token = strtok(NULL, " ");
+	}
+
+	printf("id count: %d\n", identifiers_char_count);
+}
+
+void normalize_identifier(char* identifier) {
+	int index;
+
+	for (index = 0; index < strlen(identifier); index++) {
+		if (identifier[index] != '_') {
+			if (index == 0) {
+				if (!isalpha(identifier[index])) {
+					identifier[index] = TERMINATING_CHARACTER;
+					return;
+				}
+			}
+			else {
+				if (!isalpha(identifier[index]) && !isdigit(identifier[index])) {
+					identifier[index] = TERMINATING_CHARACTER;
+				}
+			}
+		}
+	}
+}
+
+void remove_spaces(char* source)
+{
+	char* i = source;
+	char* j = source;
+	while (*j != 0)
+	{
+		*i = *j++;
+		if (*i != ' ' && *i != '\t')
+			i++;
+	}
+	*i = 0;
 }
 
 struct Quote has_string(char* string) {
@@ -191,6 +259,41 @@ struct Quote has_string(char* string) {
 	}
 
 	return result;
+}
+
+short is_c_non_type_keyword(char* word) {
+	const char* keywords[] = { "auto", "break", "case",
+		"const", "continue", "default", "do", "define",
+		"else", "enum", "extern", "for", 
+		"goto", "if", "include", "register", 
+		"return", "sizeof", "static",
+		"struct", "switch", "typedef",
+		"union", "volatile", "while" };
+	int counter;
+
+	for (counter = 0; counter < 25; counter++) {
+		if (strcmp(keywords[counter], word) == 0) {
+			return True;
+		}
+	}
+
+	return False;
+}
+
+short is_c_type(char* word) {
+	const char* keywords[] = {
+		"char", "double", "define",
+		"float", "int", "long","short",
+		"signed", "unsigned", "void" };
+	int counter;
+
+	for (counter = 0; counter < 10; counter++) {
+		if (strcmp(keywords[counter], word) == 0) {
+			return True;
+		}
+	}
+
+	return False;
 }
 
 short is_symbol_escaped(char* string, char symbol, int index_symbol) {
