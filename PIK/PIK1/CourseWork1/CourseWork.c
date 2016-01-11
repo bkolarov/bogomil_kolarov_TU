@@ -30,6 +30,9 @@ void process(char* file_name);
 short is_new_line_escaped(char* string);
 short is_symbol_escaped(char* string, char symbol, int index);
 
+/*
+*/
+
 int main() {
 	char file_name[MAX_FILE_NAME_LENGTH];
 	char* check;
@@ -43,7 +46,7 @@ int main() {
 		printf("error");
 	}
 
-	
+
 	process(file_name);
 
 
@@ -54,8 +57,9 @@ int main() {
 void process(char* file_name) {
 	FILE* file;
 	char line[READ_LINE_BUFFER_SIZE];
-	char escape_and_symbol[3];
-	escape_and_symbol[2] = TERMINATING_CHARACTER;
+	char two_chars_chunk[3];
+	char* pline = line;
+	two_chars_chunk[2] = TERMINATING_CHARACTER;
 
 	int comment_count = 0;
 
@@ -70,9 +74,9 @@ void process(char* file_name) {
 	short skip_line = False;
 	short is_in_multiline_comment = False;
 	short is_in_string = False;
-	while (fgets(line, READ_LINE_BUFFER_SIZE, file) != NULL) {
+	while (fgets(pline, READ_LINE_BUFFER_SIZE, file) != NULL) {
 		if (skip_line) {
-			if (is_new_line_escaped(line) > False) {
+			if (is_new_line_escaped(pline) > False) {
 				skip_line = True;
 			}
 			else {
@@ -81,44 +85,61 @@ void process(char* file_name) {
 
 			continue;
 		}
-		
+
 		int index;
-		for (index = 0; index < strlen(line) - 1; index++) {
-			escape_and_symbol[0] = line[index];
-			escape_and_symbol[1] = line[index + 1];
+		char c;
+		int singleline_comment_index, multiline_comment_index, quote_index;
+		singleline_comment_index = multiline_comment_index = quote_index = READ_LINE_BUFFER_SIZE;
+ 		for (index = 0; index < strlen(pline) - 1; index++) {
+			c = pline[index];
 
-			if (escape_and_symbol[0] == QUOTE) {
-				is_in_string = !is_in_string;
-			} 
-
-			if (index == strlen(line) - 3) {
-				if (escape_and_symbol[1] == QUOTE) {
-					is_in_string = !is_in_string;
+			if (!is_in_multiline_comment) {
+				if (strlen(pline) > 1) {
+					if (c == '/') {
+						if (pline[index + 1] == '/') {
+							singleline_comment_index = index;
+							break;
+						}
+						else if (pline[index + 1] == '*') {
+							multiline_comment_index = index;
+							break;
+						}
+					}
+					else if (c == QUOTE) {
+						quote_index = index;
+					}
 				}
 			}
-
-			if (!is_in_string) {
-				if (is_in_multiline_comment) {
-					if (!strcmp(escape_and_symbol, MULTILINE_COMMENT_END)) {
+			else {
+				if (strlen(pline) > 1) {
+					if (c == '*' && pline[index + 1] == '/') {
 						is_in_multiline_comment = False;
 					}
 				}
-
-				if (!is_in_multiline_comment) {
-					if (!strcmp(escape_and_symbol, SINGLE_LINE_COMMENT)) {
-						comment_count++;
-						printf("%s", line);
-						if (is_new_line_escaped(line) > False) {
-							skip_line = True;
-						}
-
+			}
+		}
+		/*
+		//
+		*/
+		if (!is_in_multiline_comment) {
+			if ((singleline_comment_index + multiline_comment_index + quote_index) < 3 * (READ_LINE_BUFFER_SIZE)) {
+				if ((singleline_comment_index < multiline_comment_index)
+					&& (singleline_comment_index < quote_index)) {
+					comment_count++;
+					printf("%s", pline);
+					if (is_new_line_escaped(pline)) {
+						skip_line = True;
 						continue;
 					}
-					else if (!strcmp(escape_and_symbol, MULTILINE_COMMENT_BEGIN)) {
-						comment_count++;
-						printf("%s", line);
-						is_in_multiline_comment = True;
-					}
+				}
+				else if ((multiline_comment_index < singleline_comment_index)
+					&& (multiline_comment_index < quote_index)) {
+					comment_count++;
+					printf("%s", pline);
+					is_in_multiline_comment = True;
+				}
+				else {
+					//is_in_string = True;
 				}
 			}
 		}
