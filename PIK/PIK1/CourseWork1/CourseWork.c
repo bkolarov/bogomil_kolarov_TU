@@ -1,5 +1,5 @@
-// Couse Work Bogomil Kolarov
-
+// Couse Work Bogomil Kolarov\
+//
 #include <stdio.h>
 #include <string.h>
 #include <Windows.h>
@@ -25,13 +25,23 @@ const short False = 0;
 void chomp(char* line);
 void process(char* file_name);
 // Finds the first occurence of the new line symbol and cheks if it is escaped.
+
 // Returns 1 if the new line symbol is escaped, 0 if it is not, -1 if no new line symbol was found.\
+//\
 //
 short is_new_line_escaped(char* string);
 short is_symbol_escaped(char* string, char symbol, int index);
+short is_symbol_escaped(char* string, char symbol, int index_symbol);
 
+struct Quote has_string(char* string);
 /*
 */
+
+struct Quote {
+	short has_string;
+	int starts_at;
+	int ends_at;
+};
 
 int main() {
 	char file_name[MAX_FILE_NAME_LENGTH];
@@ -46,7 +56,7 @@ int main() {
 		printf("error");
 	}
 
-
+	chomp(file_name);
 	process(file_name);
 
 
@@ -57,13 +67,9 @@ int main() {
 void process(char* file_name) {
 	FILE* file;
 	char line[READ_LINE_BUFFER_SIZE];
-	char two_chars_chunk[3];
-	char* pline = line;
-	two_chars_chunk[2] = TERMINATING_CHARACTER;
 
 	int comment_count = 0;
 
-	chomp(file_name);
 	file = fopen(file_name, MODE_READ_ONLY);
 
 	if (file == NULL) {
@@ -73,10 +79,10 @@ void process(char* file_name) {
 
 	short skip_line = False;
 	short is_in_multiline_comment = False;
-	short is_in_string = False;
-	while (fgets(pline, READ_LINE_BUFFER_SIZE, file) != NULL) {
+	
+	while (fgets(line, READ_LINE_BUFFER_SIZE, file) != NULL) {
 		if (skip_line) {
-			if (is_new_line_escaped(pline) > False) {
+			if (is_new_line_escaped(line) > False) {
 				skip_line = True;
 			}
 			else {
@@ -86,60 +92,64 @@ void process(char* file_name) {
 			continue;
 		}
 
+		struct Quote string_bounds = has_string(line);
+
 		int index;
 		char c;
 		int singleline_comment_index, multiline_comment_index, quote_index;
 		singleline_comment_index = multiline_comment_index = quote_index = READ_LINE_BUFFER_SIZE;
- 		for (index = 0; index < strlen(pline) - 1; index++) {
-			c = pline[index];
+ 		for (index = 0; index < strlen(line) - 1; index++) {
+			c = line[index];
 
 			if (!is_in_multiline_comment) {
-				if (strlen(pline) > 1) {
+				if (strlen(line) > 1) {
 					if (c == '/') {
-						if (pline[index + 1] == '/') {
+						if (line[index + 1] == '/') {
 							singleline_comment_index = index;
 							break;
 						}
-						else if (pline[index + 1] == '*') {
+						else if (line[index + 1] == '*') {
 							multiline_comment_index = index;
 							break;
 						}
 					}
 					else if (c == QUOTE) {
-						quote_index = index;
+						quote_index = index;	
 					}
 				}
 			}
 			else {
-				if (strlen(pline) > 1) {
-					if (c == '*' && pline[index + 1] == '/') {
+				if (strlen(line) > 1) {
+					if (c == '*' && line[index + 1] == '/') {
 						is_in_multiline_comment = False;
 					}
 				}
 			}
 		}
-		/*
-		//
-		*/
+
 		if (!is_in_multiline_comment) {
-			if ((singleline_comment_index + multiline_comment_index + quote_index) < 3 * (READ_LINE_BUFFER_SIZE)) {
+			if ((singleline_comment_index + multiline_comment_index) < 2 * (READ_LINE_BUFFER_SIZE)) {
+
 				if ((singleline_comment_index < multiline_comment_index)
-					&& (singleline_comment_index < quote_index)) {
+					&& (string_bounds.has_string 
+						&& (singleline_comment_index < string_bounds.starts_at || singleline_comment_index > string_bounds.ends_at))
+							|| !string_bounds.has_string) {
+
 					comment_count++;
-					printf("%s", pline);
-					if (is_new_line_escaped(pline)) {
+					printf("%s", line);
+					if (is_new_line_escaped(line)) {
 						skip_line = True;
 						continue;
 					}
 				}
 				else if ((multiline_comment_index < singleline_comment_index)
-					&& (multiline_comment_index < quote_index)) {
+					&& (string_bounds.has_string 
+						&& (multiline_comment_index < string_bounds.starts_at || multiline_comment_index > string_bounds.ends_at))
+							|| !string_bounds.has_string) {
+
 					comment_count++;
-					printf("%s", pline);
+					printf("%s", line);
 					is_in_multiline_comment = True;
-				}
-				else {
-					//is_in_string = True;
 				}
 			}
 		}
@@ -150,35 +160,58 @@ void process(char* file_name) {
 	fclose(file);
 }
 
-short is_symbol_escaped(char* string, char symbol, int index) {
+struct Quote has_string(char* string) {
+	struct Quote result;
 
-}
+	result.has_string = False;
 
-short is_new_line_escaped(char* string) {
-	char c;
 	int index;
-	int new_line_position = 0;
-	int escape_symbol_count = 0;
-	
-	
 	for (index = 0; index < strlen(string); index++) {
-		if (string[index] == NEW_LINE) {
-			new_line_position = index;
-			break;
+		char c = string[index];
+		if (!result.has_string) {
+			if (string[index] == QUOTE) {
+				result.has_string = True;
+				result.starts_at = index;
+			}
+		}
+		else {
+			if (string[index] == QUOTE) {
+				short symbol_escaped = is_symbol_escaped(string, QUOTE, index);
+				
+				if (symbol_escaped < 0) {
+					symbol_escaped = False;
+				}
+				
+				if (!symbol_escaped) {
+					result.ends_at = index;
+					break;
+				}
+			}
 		}
 	}
-	
-	if (new_line_position >= 1) {
-		for (index = new_line_position - 1; index > 0; index--) {
+
+	return result;
+}
+
+short is_symbol_escaped(char* string, char symbol, int index_symbol) {
+	int index;
+	int escape_symbol_count = -1;
+
+	if (index_symbol >= 1) {
+		for (index = index_symbol - 1; index > 0; index--) {
 			if (string[index] != ESCAPE_SYMBOL) {
 				break;
 			}
 			else {
+				if (escape_symbol_count == -1) {
+					escape_symbol_count = 0;
+				}
+
 				escape_symbol_count++;
 			}
 		}
 
-		if (escape_symbol_count % 2 != 0) {
+		if (escape_symbol_count > 0 && escape_symbol_count % 2 != 0) {
 			return True;
 		}
 		else {
@@ -189,6 +222,24 @@ short is_new_line_escaped(char* string) {
 		return -1;
 	}
 
+}
+
+short is_new_line_escaped(char* string) {
+	char c;
+	int index;
+	int new_line_position = 0;
+	int escape_symbol_count = 0;
+	
+	for (index = 0; index < strlen(string); index++) {
+		if (string[index] == NEW_LINE) {
+			new_line_position = index;
+			break;
+		}
+	}
+	
+	short is_escaped = is_symbol_escaped(string, NEW_LINE, new_line_position);
+	
+	return is_escaped;
 }
 
 void chomp(char* string) {
