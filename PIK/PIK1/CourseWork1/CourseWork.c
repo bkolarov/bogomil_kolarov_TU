@@ -20,6 +20,7 @@
 #define TERMINATING_CHARACTER '\0'
 
 #define MODE_READ_ONLY "r"
+#define MODE_READ_AND_APPEND "a+"
 
 const short True = 1;
 const short False = 0;
@@ -39,6 +40,7 @@ void count_identifiers(char* string);
 void remove_spaces(char* source);
 void normalize_identifier(char* identifier);
 short is_c_non_type_keyword(char* word);
+short is_identifier_already_counted(char* file_name);
 
 struct Quote has_string(char* string);
 /*
@@ -185,14 +187,14 @@ void count_identifiers(char* src) {
 		is_type = is_c_type(token);
 
 		if (!is_type && !is_c_non_type_keyword(token)) {
-			identifiers_char_count += strlen(token);
-			printf("%s\n", token);
+			if (!is_identifier_already_counted(token)) {
+				identifiers_char_count += strlen(token);
+				printf("%s\n", token);
+			}
 		}
 
 		token = strtok(NULL, " ");
 	}
-
-	printf("id count: %d\n", identifiers_char_count);
 }
 
 void normalize_identifier(char* identifier) {
@@ -213,6 +215,32 @@ void normalize_identifier(char* identifier) {
 			}
 		}
 	}
+}
+
+short is_identifier_already_counted(char* identifier) {
+	FILE* file;
+	char line[80];
+	file = fopen("identifiers.txt", MODE_READ_AND_APPEND);
+
+	if (file == NULL) {
+		printf("Error when trying to open file identifiers.txt\n");
+		perror("Message: ");
+		return False;
+	}
+
+	while (fgets(line, 80, file) != NULL) {
+		chomp(line);
+		if (strcmp(line, identifier) == 0) {
+			fclose(file);
+			return True;
+		}
+	}
+
+	fprintf(file, "%s", identifier);
+	fprintf(file, "\n");
+	fclose(file);
+
+	return False;
 }
 
 void remove_spaces(char* source)
