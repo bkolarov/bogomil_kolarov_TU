@@ -1,5 +1,6 @@
-// Couse Work Bogomil Kolarov\
-//
+// Course Work Bogomil Kolarov
+/*
+*/
 #include <stdio.h>
 #include <string.h>
 #include <Windows.h>
@@ -22,7 +23,7 @@
 #define MODE_READ_ONLY "r"
 #define MODE_READ_AND_APPEND "a+"
 
-const short True = 1;
+const short True = 1; //
 const short False = 0;
 
 void chomp(char* line);
@@ -41,13 +42,21 @@ void remove_spaces(char* source);
 void normalize_identifier(char* identifier);
 short is_c_non_type_keyword(char* word);
 short is_identifier_already_counted(char* file_name);
+void count_identifiers_with_exceptions(char* src, int comment_start, int comment_end, int string_start, int string_end);
+void count_identifiers_except_bounds(char* src, int start, int end);
 
 struct Quote has_string(char* string);
 /*
+//
 */
 
 struct Quote {
 	short has_string;
+	int starts_at;
+	int ends_at;
+};
+
+struct MultilineComment {
 	int starts_at;
 	int ends_at;
 };
@@ -102,6 +111,7 @@ void process(char* file_name) {
 		}
 
 		struct Quote string_bounds = has_string(line);
+		struct MultilineComment multiline_comment;
 
 		int index;
 		char c;
@@ -130,7 +140,12 @@ void process(char* file_name) {
 			else {
 				if (strlen(line) > 1) {
 					if (c == '*' && line[index + 1] == '/') {
+						multiline_comment.ends_at = index + 1;
+						//count_identifiers_with_exceptions(line, multiline_comment.starts_at, multiline_comment.ends_at, -1, -1);
+
 						is_in_multiline_comment = False;
+						multiline_comment.starts_at = -1;
+						multiline_comment.ends_at = -1;
 					}
 				}
 			}
@@ -139,13 +154,12 @@ void process(char* file_name) {
 		if (!is_in_multiline_comment) {
 			if ((singleline_comment_index + multiline_comment_index) < 2 * (READ_LINE_BUFFER_SIZE)) {
 
-				if ((singleline_comment_index < multiline_comment_index)
-					&& (string_bounds.has_string 
-						&& (singleline_comment_index < string_bounds.starts_at || singleline_comment_index > string_bounds.ends_at))
-							|| !string_bounds.has_string) {
-
-					comment_count++;
+				if ((singleline_comment_index < multiline_comment_index) && ((string_bounds.has_string && (singleline_comment_index < string_bounds.starts_at || singleline_comment_index > string_bounds.ends_at)) || !string_bounds.has_string)) {
 					
+					//count_identifiers_with_exceptions(line, singleline_comment_index, -1, -1, -1);
+					comment_count++;
+
+					printf("\nsinglie line: %s", line);
 					if (is_new_line_escaped(line)) {
 						skip_line = True;
 						continue;
@@ -156,8 +170,19 @@ void process(char* file_name) {
 						&& (multiline_comment_index < string_bounds.starts_at || multiline_comment_index > string_bounds.ends_at))
 							|| !string_bounds.has_string) {
 
+					multiline_comment.starts_at = multiline_comment_index;
 					comment_count++;
-					is_in_multiline_comment = True;
+					printf("\nmulti line: %s", line);
+					int i;
+					for (i = 0; i < strlen(line) - 1; i++) {
+						if (line[i] == '*' && line[i + 1] == '/') {
+							is_in_multiline_comment = False;
+							break;
+						}
+						else {
+							is_in_multiline_comment = True;
+						}
+					}
 				}
 			}
 			else {
@@ -184,12 +209,12 @@ void count_identifiers(char* src) {
 		remove_spaces(token);
 		normalize_identifier(token);
 
-		is_type = is_c_type(token);
+		is_type =/* COMMENTED_IDENTIFIER */ is_c_type(token);
 
 		if (!is_type && !is_c_non_type_keyword(token)) {
 			if (!is_identifier_already_counted(token)) {
 				identifiers_char_count += strlen(token);
-				printf("%s\n", token);
+				//printf("%s\n", token);
 			}
 		}
 
@@ -215,6 +240,48 @@ void normalize_identifier(char* identifier) {
 			}
 		}
 	}
+}
+
+void count_identifiers_with_exceptions(char* src, int comment_start, int comment_end, int string_start, int string_end) {
+	char src_cpy[READ_LINE_BUFFER_SIZE];
+	char* p_src_cpy = src_cpy;
+
+	if (comment_start > -1) {
+		if (string_start > -1) {
+			if (comment_start < string_start) {
+				count_identifiers_except_bounds(src, comment_start, comment_end);
+			}
+			else {
+				count_identifiers_except_bounds(src, string_start, string_end);
+			}
+		}
+		else {
+			count_identifiers_except_bounds(src, comment_start, comment_end);
+		}
+	}
+	else if (string_start > -1) {
+		count_identifiers_except_bounds(src, string_start, string_end);
+	}
+}
+
+void count_identifiers_except_bounds(char* src, int start, int end) {
+	char src_cpy[READ_LINE_BUFFER_SIZE];
+	char* p_src_cpy = src_cpy;
+
+	strcpy(src_cpy, src);
+
+	if (start > 0) {
+		printf("CHECK: %c %c\n", src_cpy[start], src[start]);
+		src_cpy[start] = '\0';
+		//count_identifiers(p_src_cpy);
+		if (end > -1) {
+			strcpy(src_cpy, src);
+			p_src_cpy = &src_cpy[end + 1];
+			//count_identifiers(p_src_cpy);
+			printf("%s\n", p_src_cpy);
+		}
+	}
+	
 }
 
 short is_identifier_already_counted(char* identifier) {
