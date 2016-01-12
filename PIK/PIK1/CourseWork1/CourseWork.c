@@ -141,7 +141,14 @@ void process(char* file_name) {
 				if (strlen(line) > 1) {
 					if (c == '*' && line[index + 1] == '/') {
 						multiline_comment.ends_at = index + 1;
-						//count_identifiers_with_exceptions(line, multiline_comment.starts_at, multiline_comment.ends_at, -1, -1);
+
+						if (string_bounds.has_string) {
+							count_identifiers_with_exceptions(line, multiline_comment.starts_at, multiline_comment.ends_at, string_bounds.starts_at, string_bounds.ends_at);
+						}
+						else {
+							count_identifiers_with_exceptions(line, multiline_comment.starts_at, multiline_comment.ends_at, -1, -1);
+						}
+						
 
 						is_in_multiline_comment = False;
 						multiline_comment.starts_at = -1;
@@ -154,12 +161,19 @@ void process(char* file_name) {
 		if (!is_in_multiline_comment) {
 			if ((singleline_comment_index + multiline_comment_index) < 2 * (READ_LINE_BUFFER_SIZE)) {
 
-				if ((singleline_comment_index < multiline_comment_index) && ((string_bounds.has_string && (singleline_comment_index < string_bounds.starts_at || singleline_comment_index > string_bounds.ends_at)) || !string_bounds.has_string)) {
+				if ((singleline_comment_index < multiline_comment_index) 
+					&& ((string_bounds.has_string && (singleline_comment_index < string_bounds.starts_at || singleline_comment_index > string_bounds.ends_at)) 
+						|| !string_bounds.has_string)) {
 					
-					//count_identifiers_with_exceptions(line, singleline_comment_index, -1, -1, -1);
+					if (string_bounds.has_string) {
+						count_identifiers_with_exceptions(line, singleline_comment_index, -1, string_bounds.starts_at, string_bounds.ends_at);
+					}
+					else {
+						count_identifiers_with_exceptions(line, singleline_comment_index, -1, -1, -1);
+					}
+
 					comment_count++;
 
-					printf("\nsinglie line: %s", line);
 					if (is_new_line_escaped(line)) {
 						skip_line = True;
 						continue;
@@ -172,7 +186,6 @@ void process(char* file_name) {
 
 					multiline_comment.starts_at = multiline_comment_index;
 					comment_count++;
-					printf("\nmulti line: %s", line);
 					int i;
 					for (i = 0; i < strlen(line) - 1; i++) {
 						if (line[i] == '*' && line[i + 1] == '/') {
@@ -186,7 +199,12 @@ void process(char* file_name) {
 				}
 			}
 			else {
-				count_identifiers(line);
+				if (string_bounds.has_string) {
+					count_identifiers_with_exceptions(line, string_bounds.starts_at, string_bounds.ends_at, -1, -1);
+				}
+				else {
+					count_identifiers(line);
+				}
 			}
 		}
 	}
@@ -201,6 +219,8 @@ void count_identifiers(char* src) {
 	char string[READ_LINE_BUFFER_SIZE];
 	strcpy(string, src);
 
+
+
 	short  is_type = False;
 	char* token;
 	token = strtok(string, " ");
@@ -214,7 +234,7 @@ void count_identifiers(char* src) {
 		if (!is_type && !is_c_non_type_keyword(token)) {
 			if (!is_identifier_already_counted(token)) {
 				identifiers_char_count += strlen(token);
-				//printf("%s\n", token);
+				printf("token: %s\n", token);
 			}
 		}
 
@@ -243,9 +263,6 @@ void normalize_identifier(char* identifier) {
 }
 
 void count_identifiers_with_exceptions(char* src, int comment_start, int comment_end, int string_start, int string_end) {
-	char src_cpy[READ_LINE_BUFFER_SIZE];
-	char* p_src_cpy = src_cpy;
-
 	if (comment_start > -1) {
 		if (string_start > -1) {
 			if (comment_start < string_start) {
@@ -271,13 +288,12 @@ void count_identifiers_except_bounds(char* src, int start, int end) {
 	strcpy(src_cpy, src);
 
 	if (start > 0) {
-		printf("CHECK: %c %c\n", src_cpy[start], src[start]);
 		src_cpy[start] = '\0';
-		//count_identifiers(p_src_cpy);
+		count_identifiers(p_src_cpy);
 		if (end > -1) {
 			strcpy(src_cpy, src);
 			p_src_cpy = &src_cpy[end + 1];
-			//count_identifiers(p_src_cpy);
+			count_identifiers(p_src_cpy);
 			printf("%s\n", p_src_cpy);
 		}
 	}
@@ -358,7 +374,7 @@ struct Quote has_string(char* string) {
 
 short is_c_non_type_keyword(char* word) {
 	const char* keywords[] = { "auto", "break", "case",
-		"const", "continue", "default", "do", "define",
+		"const", "continue", "default", "do",
 		"else", "enum", "extern", "for", 
 		"goto", "if", "include", "register", 
 		"return", "sizeof", "static",
@@ -366,7 +382,7 @@ short is_c_non_type_keyword(char* word) {
 		"union", "volatile", "while" };
 	int counter;
 
-	for (counter = 0; counter < 25; counter++) {
+	for (counter = 0; counter < 24; counter++) {
 		if (strcmp(keywords[counter], word) == 0) {
 			return True;
 		}
