@@ -36,11 +36,10 @@ void process(char* file_name, FILE* result_output);
 //\
 //
 short is_new_line_escaped(char* string);
-short is_symbol_escaped(char* string, char symbol, int index);
 short is_symbol_escaped(char* string, char symbol, int index_symbol);
 short is_c_type(char* word);
 short is_c_non_type_keyword(char* word);
-short is_identifier_already_counted(char* file_name);
+short is_identifier_already_counted(char* identifier);
 
 void remove_spaces(char* source);
 void normalize_identifier(char* identifier);
@@ -80,7 +79,6 @@ void read_filename(char* file_name) {
 			perror("Read error ocurred: ");
 		}
 	}
-	
 }
 
 short is_c_file(char* name) {
@@ -105,6 +103,7 @@ void check_file_opening(FILE* file) {
 }
 
 void write_program_to_file(char* file_name) {
+	printf("write your awesome code here: \n");
 	FILE* file = fopen(file_name, "w");
 	check_file_opening(file);
 
@@ -148,7 +147,6 @@ int main() {
 
 			printf("Enter outut file name: ");
 			read_filename(output_file_name);
-			
 
 			chomp(input_file_name);
 
@@ -171,14 +169,28 @@ int main() {
 			printf("Enter input file name: ");
 			read_filename(input_file_name);
 
-			process(input_file_name, stdout);
+			if (!is_c_file(input_file_name)) {
+				printf("invalid input filename\n");
+				mode = 0;
+			}
+			else {
+				process(input_file_name, stdout);
+			}
+
 			break;
 		case 3:
+			printf("Enter outut file name: ");
+			read_filename(output_file_name);
+
+			chomp(output_file_name);
+			FILE* output_file = fopen(output_file_name, "w");
+
 			write_program_to_file(INPUT_PROGRAM_FILE_NAME);
-			process(INPUT_PROGRAM_FILE_NAME, stdout);
+			process(INPUT_PROGRAM_FILE_NAME, output_file);
 			break;
 		case 4:
-
+			write_program_to_file(INPUT_PROGRAM_FILE_NAME);
+			process(INPUT_PROGRAM_FILE_NAME, stdout);
 			break;
 		}
 	}
