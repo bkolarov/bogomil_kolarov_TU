@@ -21,6 +21,7 @@
 #define TERMINATING_CHARACTER '\0'
 
 #define IDENTIFIERS_TXT "identifiers.txt"
+#define INPUT_PROGRAM_FILE_NAME "input.c"
 #define MODE_READ_ONLY "r"
 #define MODE_READ_AND_APPEND "a+"
 
@@ -65,18 +66,19 @@ struct MultilineComment {
 };
 
 void clear_stdin() {
-	char c;
-	while ((c = getchar()) != '\n' && c != EOF);
+	int ch;
+	while ((ch = fgetc(stdin)) != '\n' && ch != EOF);
 }
 
 void read_filename(char* file_name) {
 	char* check;
 
-	while ((check = fgets(file_name, MAX_FILE_NAME_LENGTH, stdin)) == NULL) {
-		if (feof(stdin)) {
-			break;
+	check = fgets(file_name, MAX_FILE_NAME_LENGTH, stdin);
+
+	if (check == NULL) {
+		if (!feof(stdin)) {
+			perror("Read error ocurred: ");
 		}
-		printf("error");
 	}
 	
 }
@@ -92,6 +94,30 @@ short is_c_file(char* name) {
 	else {
 		return True;
 	}
+}
+
+void check_file_opening(FILE* file) {
+	if (file == NULL) {
+		perror(ERROR);
+		system("Pause");
+		exit(0);
+	}
+}
+
+void write_program_to_file(char* file_name) {
+	FILE* file = fopen(file_name, "w");
+	check_file_opening(file);
+
+	char buffer_line[READ_LINE_BUFFER_SIZE];
+
+	while (fgets(buffer_line, READ_LINE_BUFFER_SIZE, stdin) != NULL) {
+		fprintf(file, "%s", buffer_line);
+		if (buffer_line[strlen(buffer_line) - 1] != NEW_LINE) {
+			fprintf(file, "%c", '\n');
+		}
+	}
+
+	fclose(file);
 }
 
 int main() {
@@ -118,9 +144,12 @@ int main() {
 		case 1:
 			printf("Enter input file name: ");
 			read_filename(input_file_name);
-			clear_stdin();
+			
+
 			printf("Enter outut file name: ");
 			read_filename(output_file_name);
+			
+
 			chomp(input_file_name);
 
 			if (!is_c_file(input_file_name)) {
@@ -128,35 +157,31 @@ int main() {
 				mode = 0;
 			}
 			else {
+				chomp(output_file_name);
+				FILE* output_file = fopen(output_file_name, "w");
 
+				check_file_opening(output_file);
+
+				process(input_file_name, output_file);
+				fclose(output_file);
 			}
-
 
 			break;
 		case 2:
+			printf("Enter input file name: ");
+			read_filename(input_file_name);
 
+			process(input_file_name, stdout);
 			break;
 		case 3:
-
+			write_program_to_file(INPUT_PROGRAM_FILE_NAME);
+			process(INPUT_PROGRAM_FILE_NAME, stdout);
 			break;
 		case 4:
 
 			break;
 		}
 	}
-
-	printf("Enter the name of the file: "); //
-
-	while ((check = fgets(input_file_name, MAX_FILE_NAME_LENGTH, stdin)) == NULL) {
-		if (feof(stdin)) {
-			break;
-		}
-		printf("error");
-	}
-
-	chomp(input_file_name);
-	process(input_file_name, stdout);
-
 
 	system("pause");
 	return 0;
@@ -171,10 +196,7 @@ void process(char* file_name, FILE* result_output) {
 
 	file = fopen(file_name, MODE_READ_ONLY);
 
-	if (file == NULL) {
-		perror(ERROR);
-		return;
-	}
+	check_file_opening(file);
 
 	short skip_line = False;
 	short is_in_multiline_comment = False;
