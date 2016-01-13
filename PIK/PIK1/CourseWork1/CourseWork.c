@@ -20,6 +20,7 @@
 
 #define TERMINATING_CHARACTER '\0'
 
+#define IDENTIFIERS_TXT "identifiers.txt"
 #define MODE_READ_ONLY "r"
 #define MODE_READ_AND_APPEND "a+"
 
@@ -27,7 +28,7 @@ const short True = 1; //
 const short False = 0;
 
 void chomp(char* line);
-void process(char* file_name);
+void process(char* file_name, FILE* result_output);
 // Finds the first occurence of the new line symbol and cheks if it is escaped.
 
 // Returns 1 if the new line symbol is escaped, 0 if it is not, -1 if no new line symbol was found.\
@@ -37,13 +38,15 @@ short is_new_line_escaped(char* string);
 short is_symbol_escaped(char* string, char symbol, int index);
 short is_symbol_escaped(char* string, char symbol, int index_symbol);
 short is_c_type(char* word);
-void count_identifiers(char* string);
-void remove_spaces(char* source);
-void normalize_identifier(char* identifier);
 short is_c_non_type_keyword(char* word);
 short is_identifier_already_counted(char* file_name);
-void count_identifiers_with_exceptions(char* src, int comment_start, int comment_end, int string_start, int string_end);
-void count_identifiers_except_bounds(char* src, int start, int end);
+
+void remove_spaces(char* source);
+void normalize_identifier(char* identifier);
+
+int count_identifiers_with_exceptions(char* src, int comment_start, int comment_end, int string_start, int string_end, int* count);
+int count_identifiers_except_bounds(char* src, int start, int end, int* count);
+int count_identifiers(char* string, int* count);
 
 struct Quote has_string(char* string);
 /*
@@ -61,11 +64,13 @@ struct MultilineComment {
 	int ends_at;
 };
 
-int main() {
-	char file_name[MAX_FILE_NAME_LENGTH];
-	char* check;
+void clear_stdin() {
+	char c;
+	while ((c = getchar()) != '\n' && c != EOF);
+}
 
-	printf("Enter the name of the file: "); //
+void read_filename(char* file_name) {
+	char* check;
 
 	while ((check = fgets(file_name, MAX_FILE_NAME_LENGTH, stdin)) == NULL) {
 		if (feof(stdin)) {
@@ -73,20 +78,96 @@ int main() {
 		}
 		printf("error");
 	}
+	
+}
 
-	chomp(file_name);
-	process(file_name);
+short is_c_file(char* name) {
+	if (strlen(name) < 3) {
+		return False;
+	}
+
+	if (name[strlen(name) - 2] != '.' && name[strlen(name) - 1] != 'c') {
+		return False;
+	}
+	else {
+		return True;
+	}
+}
+
+int main() {
+	char input_file_name[MAX_FILE_NAME_LENGTH];
+	char output_file_name[MAX_FILE_NAME_LENGTH];
+	char* check;
+
+	fclose(fopen(IDENTIFIERS_TXT, "w"));
+
+	int mode = 0;
+	printf("Enter one of the following modes: \n");
+	printf("Mode 1 :  read from file and write to file\n");
+	printf("Mode 2 :  read from file and write to screen\n");
+	printf("Mode 3 :  read from user and write to file\n");
+	printf("Mode 4 :  read from user and write to screen\n");
+	
+
+	while (mode < 1 || mode > 4) {
+		printf("Enter mode: ");
+		scanf("%d", &mode);
+		clear_stdin();
+
+		switch (mode) {
+		case 1:
+			printf("Enter input file name: ");
+			read_filename(input_file_name);
+			clear_stdin();
+			printf("Enter outut file name: ");
+			read_filename(output_file_name);
+			chomp(input_file_name);
+
+			if (!is_c_file(input_file_name)) {
+				printf("invalid input filename\n");
+				mode = 0;
+			}
+			else {
+
+			}
+
+
+			break;
+		case 2:
+
+			break;
+		case 3:
+
+			break;
+		case 4:
+
+			break;
+		}
+	}
+
+	printf("Enter the name of the file: "); //
+
+	while ((check = fgets(input_file_name, MAX_FILE_NAME_LENGTH, stdin)) == NULL) {
+		if (feof(stdin)) {
+			break;
+		}
+		printf("error");
+	}
+
+	chomp(input_file_name);
+	process(input_file_name, stdout);
 
 
 	system("pause");
 	return 0;
 }
 
-void process(char* file_name) {
+void process(char* file_name, FILE* result_output) {
 	FILE* file;
 	char line[READ_LINE_BUFFER_SIZE];
 
 	int comment_count = 0;
+	int identifiers_count = 0;
 
 	file = fopen(file_name, MODE_READ_ONLY);
 
@@ -143,10 +224,10 @@ void process(char* file_name) {
 						multiline_comment.ends_at = index + 1;
 
 						if (string_bounds.has_string) {
-							count_identifiers_with_exceptions(line, multiline_comment.starts_at, multiline_comment.ends_at, string_bounds.starts_at, string_bounds.ends_at);
+							identifiers_count += count_identifiers_with_exceptions(line, multiline_comment.starts_at, multiline_comment.ends_at, string_bounds.starts_at, string_bounds.ends_at, &identifiers_count);
 						}
 						else {
-							count_identifiers_with_exceptions(line, multiline_comment.starts_at, multiline_comment.ends_at, -1, -1);
+							identifiers_count += count_identifiers_with_exceptions(line, multiline_comment.starts_at, multiline_comment.ends_at, -1, -1, &identifiers_count);
 						}
 						
 
@@ -166,10 +247,10 @@ void process(char* file_name) {
 						|| !string_bounds.has_string)) {
 					
 					if (string_bounds.has_string) {
-						count_identifiers_with_exceptions(line, singleline_comment_index, -1, string_bounds.starts_at, string_bounds.ends_at);
+						identifiers_count += count_identifiers_with_exceptions(line, singleline_comment_index, -1, string_bounds.starts_at, string_bounds.ends_at, &identifiers_count);
 					}
 					else {
-						count_identifiers_with_exceptions(line, singleline_comment_index, -1, -1, -1);
+						identifiers_count += count_identifiers_with_exceptions(line, singleline_comment_index, -1, -1, -1, &identifiers_count);
 					}
 
 					comment_count++;
@@ -200,26 +281,25 @@ void process(char* file_name) {
 			}
 			else {
 				if (string_bounds.has_string) {
-					count_identifiers_with_exceptions(line, string_bounds.starts_at, string_bounds.ends_at, -1, -1);
+					count_identifiers_with_exceptions(line, string_bounds.starts_at, string_bounds.ends_at, -1, -1, &identifiers_count);
 				}
 				else {
-					count_identifiers(line);
+					count_identifiers(line, &identifiers_count);
 				}
 			}
 		}
 	}
 
-	printf("comments count: %d\n", comment_count);
+	fprintf(result_output, "comments count: %d\n", comment_count);
+	fprintf(result_output, "identifiers char count: %d\n", identifiers_count);
 
 	fclose(file);
 }
 
-void count_identifiers(char* src) {
-	static int identifiers_char_count = 0;
+int count_identifiers(char* src, int* count) {
+	int identifiers_char_count = 0;
 	char string[READ_LINE_BUFFER_SIZE];
 	strcpy(string, src);
-
-
 
 	short  is_type = False;
 	char* token;
@@ -233,13 +313,14 @@ void count_identifiers(char* src) {
 
 		if (!is_type && !is_c_non_type_keyword(token)) {
 			if (!is_identifier_already_counted(token)) {
-				identifiers_char_count += strlen(token);
-				printf("token: %s\n", token);
+				*count += strlen(token);
 			}
 		}
 
 		token = strtok(NULL, " ");
 	}
+	
+	return identifiers_char_count;
 }
 
 void normalize_identifier(char* identifier) {
@@ -262,26 +343,27 @@ void normalize_identifier(char* identifier) {
 	}
 }
 
-void count_identifiers_with_exceptions(char* src, int comment_start, int comment_end, int string_start, int string_end) {
+int count_identifiers_with_exceptions(char* src, int comment_start, int comment_end, int string_start, int string_end, int* count) {
 	if (comment_start > -1) {
 		if (string_start > -1) {
 			if (comment_start < string_start) {
-				count_identifiers_except_bounds(src, comment_start, comment_end);
+				return count_identifiers_except_bounds(src, comment_start, comment_end, count);
 			}
 			else {
-				count_identifiers_except_bounds(src, string_start, string_end);
+				return count_identifiers_except_bounds(src, string_start, string_end, count);
 			}
 		}
 		else {
-			count_identifiers_except_bounds(src, comment_start, comment_end);
+			return count_identifiers_except_bounds(src, comment_start, comment_end, count);
 		}
 	}
 	else if (string_start > -1) {
-		count_identifiers_except_bounds(src, string_start, string_end);
+		return count_identifiers_except_bounds(src, string_start, string_end, count);
 	}
 }
 
-void count_identifiers_except_bounds(char* src, int start, int end) {
+int count_identifiers_except_bounds(char* src, int start, int end, int* count) {
+	int identifiers_count = 0;
 	char src_cpy[READ_LINE_BUFFER_SIZE];
 	char* p_src_cpy = src_cpy;
 
@@ -289,21 +371,21 @@ void count_identifiers_except_bounds(char* src, int start, int end) {
 
 	if (start > 0) {
 		src_cpy[start] = '\0';
-		count_identifiers(p_src_cpy);
+		identifiers_count += count_identifiers(p_src_cpy, count);
 		if (end > -1) {
 			strcpy(src_cpy, src);
 			p_src_cpy = &src_cpy[end + 1];
-			count_identifiers(p_src_cpy);
-			printf("%s\n", p_src_cpy);
+			identifiers_count += count_identifiers(p_src_cpy, count);
 		}
 	}
 	
+	return identifiers_count;
 }
 
 short is_identifier_already_counted(char* identifier) {
 	FILE* file;
 	char line[80];
-	file = fopen("identifiers.txt", MODE_READ_AND_APPEND);
+	file = fopen(IDENTIFIERS_TXT, MODE_READ_AND_APPEND);
 
 	if (file == NULL) {
 		printf("Error when trying to open file identifiers.txt\n");
