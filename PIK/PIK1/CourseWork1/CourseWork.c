@@ -1,6 +1,7 @@
 // Course Work Bogomil Kolarov
 /*
 */
+#include <visual_2012.h>
 #include <stdio.h>
 #include <string.h>
 #include <Windows.h>
@@ -103,11 +104,11 @@ void check_file_opening(FILE* file) {
 }
 
 void write_program_to_file(char* file_name) {
-	printf("write your awesome code here: \n");
 	FILE* file = fopen(file_name, "w");
+	char buffer_line[READ_LINE_BUFFER_SIZE];
 	check_file_opening(file);
 
-	char buffer_line[READ_LINE_BUFFER_SIZE];
+	printf("write your awesome code here: \n");
 
 	while (fgets(buffer_line, READ_LINE_BUFFER_SIZE, stdin) != NULL) {
 		fprintf(file, "%s", buffer_line);
@@ -123,15 +124,19 @@ int main() {
 	char input_file_name[MAX_FILE_NAME_LENGTH];
 	char output_file_name[MAX_FILE_NAME_LENGTH];
 	char* check;
+	int mode = 0;
+
+	FILE* output_file;
+
+	SetConsoleOutputCP(1251);
 
 	fclose(fopen(IDENTIFIERS_TXT, "w"));
 
-	int mode = 0;
-	printf("Enter one of the following modes: \n");
-	printf("Mode 1 :  read from file and write to file\n");
-	printf("Mode 2 :  read from file and write to screen\n");
-	printf("Mode 3 :  read from user and write to file\n");
-	printf("Mode 4 :  read from user and write to screen\n");
+	printf("Изберете опция: \n");
+	printf("Опция 1 :  read from file and write to file\n");
+	printf("Опция 2 :  read from file and write to screen\n");
+	printf("Опция 3 :  read from user and write to file\n");
+	printf("Опция 4 :  read from user and write to screen\n");
 	
 
 	while (mode < 1 || mode > 4) {
@@ -156,7 +161,7 @@ int main() {
 			}
 			else {
 				chomp(output_file_name);
-				FILE* output_file = fopen(output_file_name, "w");
+				output_file = fopen(output_file_name, "w");
 
 				check_file_opening(output_file);
 
@@ -183,7 +188,7 @@ int main() {
 			read_filename(output_file_name);
 
 			chomp(output_file_name);
-			FILE* output_file = fopen(output_file_name, "w");
+			output_file = fopen(output_file_name, "w");
 
 			write_program_to_file(INPUT_PROGRAM_FILE_NAME);
 			process(INPUT_PROGRAM_FILE_NAME, output_file);
@@ -206,12 +211,20 @@ void process(char* file_name, FILE* result_output) {
 	int comment_count = 0;
 	int identifiers_count = 0;
 
+	short skip_line = False;
+	short is_in_multiline_comment = False;
+
+	struct Quote string_bounds;
+	struct MultilineComment multiline_comment;
+
+	int index;
+	char c;
+	int singleline_comment_index, multiline_comment_index, quote_index;
+	int i;
+
 	file = fopen(file_name, MODE_READ_ONLY);
 
 	check_file_opening(file);
-
-	short skip_line = False;
-	short is_in_multiline_comment = False;
 	
 	while (fgets(line, READ_LINE_BUFFER_SIZE, file) != NULL) {
 		if (skip_line) {
@@ -225,12 +238,8 @@ void process(char* file_name, FILE* result_output) {
 			continue;
 		}
 
-		struct Quote string_bounds = has_string(line);
-		struct MultilineComment multiline_comment;
-
-		int index;
-		char c;
-		int singleline_comment_index, multiline_comment_index, quote_index;
+		string_bounds = has_string(line);
+		
 		singleline_comment_index = multiline_comment_index = quote_index = READ_LINE_BUFFER_SIZE;
  		for (index = 0; index < strlen(line) - 1; index++) {
 			c = line[index];
@@ -301,7 +310,7 @@ void process(char* file_name, FILE* result_output) {
 
 					multiline_comment.starts_at = multiline_comment_index;
 					comment_count++;
-					int i;
+					
 					for (i = 0; i < strlen(line) - 1; i++) {
 						if (line[i] == '*' && line[i + 1] == '/') {
 							is_in_multiline_comment = False;
@@ -333,10 +342,13 @@ void process(char* file_name, FILE* result_output) {
 int count_identifiers(char* src, int* count) {
 	int identifiers_char_count = 0;
 	char string[READ_LINE_BUFFER_SIZE];
-	strcpy(string, src);
+	
 
 	short  is_type = False;
 	char* token;
+
+	strcpy(string, src);
+
 	token = strtok(string, " ");
 	chomp(token);
 	while (token != NULL) {
@@ -457,12 +469,13 @@ void remove_spaces(char* source)
 
 struct Quote has_string(char* string) {
 	struct Quote result;
+	int index;
+	char c;
 
 	result.has_string = False;
 
-	int index;
 	for (index = 0; index < strlen(string); index++) {
-		char c = string[index];
+		c = string[index];
 		if (!result.has_string) {
 			if (string[index] == QUOTE) {
 				result.has_string = True;
@@ -559,7 +572,8 @@ short is_new_line_escaped(char* string) {
 	int index;
 	int new_line_position = 0;
 	int escape_symbol_count = 0;
-	
+	short is_escaped;
+
 	for (index = 0; index < strlen(string); index++) {
 		if (string[index] == NEW_LINE) {
 			new_line_position = index;
@@ -567,7 +581,7 @@ short is_new_line_escaped(char* string) {
 		}
 	}
 	
-	short is_escaped = is_symbol_escaped(string, NEW_LINE, new_line_position);
+	is_escaped = is_symbol_escaped(string, NEW_LINE, new_line_position);
 	
 	return is_escaped;
 }
