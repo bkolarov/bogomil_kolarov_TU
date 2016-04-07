@@ -38,8 +38,8 @@ int main() {
 				buffer_len = strlen(buffer);
 			} while(buffer[buffer_len-1] != '\n' && !feof(fp));
 			
-			if (buffer[buffer_len-1] != '\n') {
-				if (buffer_len + 1 == buffer_elements_count) {
+			if (buffer[buffer_len-1] != '\n') { // add new line if there isn't already
+				if (buffer_len + 1 == buffer_elements_count) { // make sure there is enough space for the new line. If there isn't - get more
 					buffer = (char*) realloc(buffer, buffer_elements_count + 1);
 					buffer_len = strlen(buffer);
 				}
